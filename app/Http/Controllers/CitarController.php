@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use GuzzleHttp\Client;
 
 class CitarController extends Controller
 {
@@ -22,7 +23,16 @@ class CitarController extends Controller
     {
         /////primero nos atenticamos
 
-        $doi = $request->input('url');
+        $doi = $request->input('url'); 
+        $is_doi=true;
+        if(strpos($doi, '/')){
+            $doi = str_replace("http://dx.doi.org/", "", $doi); // ES DOI
+        }else{
+            $doi = str_replace("-", "", $doi);
+            $is_doi =false;         //es ISBN
+        }
+        
+
         $normativa = $request->input('normativa');
 
 
@@ -46,14 +56,19 @@ class CitarController extends Controller
             'Accept' => 'application/vnd.mendeley-document.1+json'
         ];
 
-        $search_url = "https://api.mendeley.com/catalog?doi=" . urlencode($doi);
+       
+        if($is_doi){
+            $search_url = "https://api.mendeley.com/catalog?doi=" . urlencode($doi);
+        }else{
+            $search_url = "https://api.mendeley.com/catalog?isbn=" . $doi;
+        }
 
         $response = $this->client->request('GET', $search_url, [
             'headers' => $headers
         ]);
 
         $document = json_decode($response->getBody()->getContents());
-        //dd($document);
+        
         $cita = $this->generar_cita($document, $normativa);
 
         return response()->json(['cita' => $cita]);
