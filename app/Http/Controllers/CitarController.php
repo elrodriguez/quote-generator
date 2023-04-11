@@ -26,7 +26,10 @@ class CitarController extends Controller
         $doi = $request->input('url'); 
         $is_doi=true;
         if(strpos($doi, '/')){
+            $doi = str_replace("https://dx.doi.org/", "", $doi); // ES DOI
+            $doi = str_replace("https://doi.org/", "", $doi); // ES DOI
             $doi = str_replace("http://dx.doi.org/", "", $doi); // ES DOI
+            $doi = str_replace("http://doi.org/", "", $doi); // ES DOI
         }else{
             $doi = str_replace("-", "", $doi);
             $is_doi =false;         //es ISBN
@@ -70,7 +73,7 @@ class CitarController extends Controller
         $document = json_decode($response->getBody()->getContents());
         
         $cita = $this->generar_cita($document, $normativa);
-
+        
         return response()->json(['cita' => $cita]);
     }
 
@@ -101,19 +104,19 @@ class CitarController extends Controller
         $authors = array();
 
         //Obtener el nombre de los autores
-        foreach ($document->authors as $author) {
-            array_push($authors, $author->last_name . ", " . $author->first_name);
+        foreach ($document->authors as $author) { //solo la inicial del primer nombre
+            array_push($authors, $author->last_name . ", " . substr($author->first_name, 0, 1).".");
         }
 
         $citation = '<p>';
 
         //Añadir los apellidos de los autores
         if (count($authors) == 1) {
-            $citation .= $authors[0] . ". ";
+            $citation .= $authors[0] . " ";
         } elseif (count($authors) == 2) {
-            $citation .= $authors[0] . " y " . $authors[1] . ". ";
+            $citation .= $authors[0] . " y " . $authors[1] . " ";
         } elseif (count($authors) == 3) {
-            $citation .= $authors[0] . ", " . $authors[1] . ", y " . $authors[2] . ". ";
+            $citation .= $authors[0] . ", " . $authors[1] . ", y " . $authors[2] . " ";
         } elseif (count($authors) > 3) {
             $citation .= $authors[0] . " et al. ";
         }
@@ -139,7 +142,12 @@ class CitarController extends Controller
             $citation .= ", " . $document->pages;
         }
 
-        $citation .= ".</p>";
+        //Añadir el DOI
+        if (isset($document->identifiers->doi)) {
+            $citation .= ' <a href="https://doi.org/' . $document->identifiers->doi . '">' ."https://doi.org/".$document->identifiers->doi . '</a>';
+        }
+
+        $citation .= "</p>";
 
         return $citation;
     }
@@ -435,14 +443,15 @@ class CitarController extends Controller
         $authors = array();
 
         //Obtener el nombre de los autores
-        foreach ($document->authors as $author) {
-            array_push($authors, $author->last_name . " " . $author->first_name);
+        foreach ($document->authors as $author) { 
+            $first_lastname = explode(" ", $author->last_name); //en vancouver solo el primer apellido
+            array_push($authors, $first_lastname[0] . " " . substr($author->first_name, 0, 1)."."); // inicial de nombre
         }
 
         $citation = '<p>';
 
         //Añadir los apellidos y las iniciales de los nombres de los autores
-        foreach ($authors as $author) {
+        foreach ($authors as $key => $author) {
             $name_parts = explode(" ", $author);
             $initials = "";
 
@@ -450,15 +459,20 @@ class CitarController extends Controller
                 $initials .= substr($part, 0, 1) . ".";
             }
 
-            $citation .= $author . " " . $initials . ", ";
+            if ($key === count($authors) - 1){
+                $citation .= $author ." ";
+            }else{
+                $citation .= $author .", ";
+            }
+            
         }
 
         //Añadir el título del artículo
         $citation .= $document->title . ". ";
 
         //Añadir el nombre de la revista
-        if (isset($document->source)) {
-            $citation .= $document->source . ". ";
+        if (isset($document->source) && $document->title != $document->source) {
+            $citation .= "<em>" . $document->source . "</em>. ";
         }
 
         //Añadir el año de publicación
