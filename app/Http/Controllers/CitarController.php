@@ -37,8 +37,7 @@ class CitarController extends Controller
         
 
         $normativa = $request->input('normativa');
-
-
+        
         $response = $this->client->request('POST', 'https://api.mendeley.com/oauth/token', [
             'form_params' => [
                 'grant_type' => 'client_credentials',
@@ -59,7 +58,6 @@ class CitarController extends Controller
             'Accept' => 'application/vnd.mendeley-document.1+json'
         ];
 
-       
         if($is_doi){
             $search_url = "https://api.mendeley.com/catalog?doi=" . urlencode($doi);
         }else{
@@ -105,11 +103,14 @@ class CitarController extends Controller
 
         //Obtener el nombre de los autores
         foreach ($document->authors as $author) { //solo la inicial del primer nombre
-            array_push($authors, $author->last_name . ", " . substr($author->first_name, 0, 1).".");
+            if($document->type=="book"){
+                array_push($authors, str_replace(" ", "-", $author->last_name) . ", " . substr($author->first_name, 0, 1).".");
+            }else{
+                array_push($authors, $author->last_name . ", " . substr($author->first_name, 0, 1).".");
+            }
         }
 
         $citation = '<p>';
-
         //Añadir los apellidos de los autores
         if (count($authors) == 1) {
             $citation .= $authors[0] . " ";
@@ -323,7 +324,9 @@ class CitarController extends Controller
 
         //Obtener el nombre de los autores
         foreach ($document->authors as $author) {
-            $name = $author->last_name . ', ' . $author->first_name;
+            $last_name = explode(" ",$author->last_name);
+            $last_name = mb_strtoupper($last_name[0], 'UTF-8');
+            $name = $last_name . ', ' . $author->first_name;
             array_push($authors, $name);
         }
 
@@ -342,7 +345,7 @@ class CitarController extends Controller
         }
 
         //Añadir el título del artículo
-        $citation .= $document->title . '. ';
+        $citation .= $document->title . '. [en línea]. ';
 
         //Añadir el nombre de la revista
         if (isset($document->source)) {
@@ -370,7 +373,7 @@ class CitarController extends Controller
         //Añadir el DOI
         //dd($document->identifiers->doi);
         if (isset($document->identifiers->doi)) {
-            $citation .= 'DOI: <a href="https://doi.org/' . $document->identifiers->doi . '">' . $document->identifiers->doi . '</a>.';
+            $citation .= 'DOI: <a href="https://doi.org/' . $document->identifiers->doi . '">' . "https://doi.org/" . $document->identifiers->doi . '</a>.';
         }
 
         $citation .= '</p>';
