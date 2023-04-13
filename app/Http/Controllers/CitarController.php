@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
+use Carbon\Carbon;
 
 class CitarController extends Controller
 {
@@ -21,6 +22,8 @@ class CitarController extends Controller
 
     public function citar(Request $request)
     {
+
+
         /////primero nos atenticamos
 
         $doi = $request->input('url'); 
@@ -370,10 +373,56 @@ class CitarController extends Controller
             $citation .= 's. ' . $document->pages . '. ';
         }
 
+        //Fecha de consulta
+        $month=date('n');
+        switch ($month) {
+            case '1':
+                $month = "enero";
+                break;
+            case '2':
+                $month = "febrero";
+                break;
+            case '3':
+                $month = "marzo";
+                break;
+            case '4':
+                $month = "abril";
+                break;
+            case '5':
+                $month = "mayo";
+                break;
+            case '6':
+                $month = "junio";
+                break;
+            case '7':
+                $month = "julio";
+                break;
+            case '8':
+                $month = "agosto";
+                break;
+            case '9':
+                $month = "septiembre";
+                break;
+            case '10':
+                $month = "octubre";
+                break;
+            case '11':
+                $month = "noviembre";
+                break;
+            case '12':
+                $month = "diciembre";
+                break;
+        }
+        setlocale(LC_TIME, 'es_ES.UTF-8');
+        $fecha_actual = Carbon::now()->formatLocalized('%e de '.$month.' de %Y');
+        $string_fecha = " [Fecha de consulta: " . $fecha_actual."] ";
+        $citation .= $string_fecha;
+
+
         //Añadir el DOI
         //dd($document->identifiers->doi);
         if (isset($document->identifiers->doi)) {
-            $citation .= 'DOI: <a href="https://doi.org/' . $document->identifiers->doi . '">' . "https://doi.org/" . $document->identifiers->doi . '</a>.';
+            $citation .= 'Disponible en: <a href="https://doi.org/' . $document->identifiers->doi . '">' . "https://doi.org/" . $document->identifiers->doi . '</a>.';
         }
 
         $citation .= '</p>';
@@ -471,7 +520,11 @@ class CitarController extends Controller
         }
 
         //Añadir el título del artículo
-        $citation .= $document->title . ". ";
+        if($document->type=="book"){
+            $citation .= $document->title . " [Internet]. ";
+        }else{
+            $citation .= $document->title . ". ";
+        }        
 
         //Añadir el nombre de la revista
         if (isset($document->source) && $document->title != $document->source) {
